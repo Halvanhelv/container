@@ -47,6 +47,9 @@ extension Application {
         @Option(name: .customLong("tar"), help: "Filesystem path or remote URL to a tar archive containing a kernel file")
         var tarPath: String? = nil
 
+        @Option(name: .customLong("sha256"), help: "Expected SHA-256 digest of the tar archive, verified when --tar is a remote URL")
+        var sha256: String? = nil
+
         @OptionGroup
         public var logOptions: Flags.Logging
 
@@ -58,7 +61,8 @@ extension Application {
                 let url = containerSystemConfig.kernel.url
                 let path: String = containerSystemConfig.kernel.binaryPath
                 log.info("Installing the recommended kernel from \(url)...")
-                try await Self.downloadAndInstallWithProgressBar(tarRemoteURL: url, kernelFilePath: path, force: force)
+                try await Self.downloadAndInstallWithProgressBar(
+                    tarRemoteURL: url, kernelFilePath: path, expectedSHA256: sha256 ?? containerSystemConfig.kernel.sha256, force: force)
                 return
             }
             guard tarPath != nil else {
@@ -93,7 +97,8 @@ extension Application {
             guard let remoteURL = URL(string: tarPath) else {
                 throw ContainerizationError(.invalidArgument, message: "invalid remote URL '\(tarPath)' for argument '--tar'. Missing protocol?")
             }
-            try await Self.downloadAndInstallWithProgressBar(tarRemoteURL: remoteURL, kernelFilePath: binaryPath, platform: platform, force: force)
+            try await Self.downloadAndInstallWithProgressBar(
+                tarRemoteURL: remoteURL, kernelFilePath: binaryPath, platform: platform, expectedSHA256: sha256, force: force)
         }
 
         private func getSystemPlatform() throws -> SystemPlatform {
@@ -107,7 +112,9 @@ extension Application {
             }
         }
 
-        static func downloadAndInstallWithProgressBar(tarRemoteURL: URL, kernelFilePath: String, platform: SystemPlatform = .current, force: Bool) async throws {
+        static func downloadAndInstallWithProgressBar(
+            tarRemoteURL: URL, kernelFilePath: String, platform: SystemPlatform = .current, expectedSHA256: String? = nil, force: Bool
+        ) async throws {
             let progressConfig = try ProgressConfig(
                 showTasks: true,
                 totalTasks: 2
@@ -118,7 +125,8 @@ extension Application {
             }
             progress.start()
             try await ClientKernel.installKernelFromTar(
-                tarFile: tarRemoteURL.absoluteString, kernelFilePath: kernelFilePath, platform: platform, progressUpdate: progress.handler, force: force)
+                tarFile: tarRemoteURL.absoluteString, kernelFilePath: kernelFilePath, platform: platform, expectedSHA256: expectedSHA256,
+                progressUpdate: progress.handler, force: force)
             progress.finish()
         }
 

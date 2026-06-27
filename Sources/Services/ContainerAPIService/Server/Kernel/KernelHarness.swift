@@ -45,9 +45,11 @@ public struct KernelHarness: Sendable {
             return message.reply()
         }
 
+        let expectedSHA256 = message.kernelSHA256()
         let progressUpdateService = ProgressUpdateService(message: message)
         try await self.service.installKernelFrom(
-            tar: kernelTarUrl, kernelFilePath: kernelFilePath, platform: platform, progressUpdate: progressUpdateService?.handler, force: force)
+            tar: kernelTarUrl, kernelFilePath: kernelFilePath, platform: platform, expectedSHA256: expectedSHA256,
+            progressUpdate: progressUpdateService?.handler, force: force)
         return message.reply()
     }
 
@@ -93,5 +95,9 @@ extension XPCMessage {
 
     fileprivate func kernelForce() throws -> Bool {
         self.bool(key: .kernelForce)
+    }
+
+    fileprivate func kernelSHA256() -> String? {
+        self.string(key: .kernelSHA256)
     }
 }

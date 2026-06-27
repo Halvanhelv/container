@@ -81,7 +81,9 @@ public actor KernelService {
     /// Copies a kernel binary from inside of tar file into the managed kernels directory
     /// as the default kernel for the provided platform.
     /// The parameter `tar` maybe a location to a local file on disk, or a remote URL.
-    public func installKernelFrom(tar: URL, kernelFilePath: String, platform: SystemPlatform, progressUpdate: ProgressUpdateHandler?, force: Bool) async throws {
+    public func installKernelFrom(
+        tar: URL, kernelFilePath: String, platform: SystemPlatform, expectedSHA256: String? = nil, progressUpdate: ProgressUpdateHandler?, force: Bool
+    ) async throws {
         log.debug(
             "KernelService: enter",
             metadata: [
@@ -121,7 +123,8 @@ public actor KernelService {
             if let progressUpdate {
                 downloadProgressUpdate = ProgressTaskCoordinator.handler(for: downloadTask, from: progressUpdate)
             }
-            try await ContainerAPIClient.FileDownloader.downloadFile(url: tar, to: tarFile, progressUpdate: downloadProgressUpdate)
+            try await ContainerAPIClient.FileDownloader.downloadFile(
+                url: tar, to: tarFile, expectedSHA256: expectedSHA256, progressUpdate: downloadProgressUpdate)
         }
         await taskManager.finish()
 

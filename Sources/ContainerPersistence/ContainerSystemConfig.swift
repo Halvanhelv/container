@@ -168,21 +168,31 @@ final public class KernelConfig: Codable, Sendable {
     public static let defaultBinaryPath = "opt/kata/share/kata-containers/vmlinux-6.18.15-186"
     public static let defaultURL: URL =
         URL(string: "https://github.com/kata-containers/kata-containers/releases/download/3.28.0/kata-static-3.28.0-arm64.tar.zst")!
+    /// SHA-256 digest of the archive at `defaultURL`, used to verify the integrity of
+    /// the recommended kernel download.
+    public static let defaultSHA256 = "f63d54507d1f18635d94475077e4c2330de4d8e05cedf25f7c38f063b0e66a91"
 
     private enum CodingKeys: String, CodingKey {
         case binaryPath
         case url
+        case sha256
     }
 
     public let binaryPath: String
     public let url: URL
+    /// Expected SHA-256 digest of the kernel archive at `url`, or `nil` to skip
+    /// verification. Defaults to `defaultSHA256` only when `url` is the bundled default,
+    /// since a custom URL's contents are unknown.
+    public let sha256: String?
 
     public init(
         binaryPath: String = defaultBinaryPath,
-        url: URL = defaultURL
+        url: URL = defaultURL,
+        sha256: String? = nil
     ) {
         self.binaryPath = binaryPath
         self.url = url
+        self.sha256 = sha256 ?? (url == Self.defaultURL ? Self.defaultSHA256 : nil)
     }
 
     public init(from decoder: any Decoder) throws {
@@ -190,13 +200,17 @@ final public class KernelConfig: Codable, Sendable {
         self.binaryPath =
             try container.decodeIfPresent(String.self, forKey: .binaryPath)
             ?? Self.defaultBinaryPath
+        let resolvedURL: URL
         if let urlString = try container.decodeIfPresent(String.self, forKey: .url),
             let parsed = URL(string: urlString)
         {
-            self.url = parsed
+            resolvedURL = parsed
         } else {
-            self.url = Self.defaultURL
+            resolvedURL = Self.defaultURL
         }
+        self.url = resolvedURL
+        let decodedSHA256 = try container.decodeIfPresent(String.self, forKey: .sha256)
+        self.sha256 = decodedSHA256 ?? (resolvedURL == Self.defaultURL ? Self.defaultSHA256 : nil)
     }
 
     // JSONEncoder special-cases URL to encode as absoluteString, but third-party
@@ -209,6 +223,7 @@ final public class KernelConfig: Codable, Sendable {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(binaryPath, forKey: .binaryPath)
         try container.encode(url.absoluteString, forKey: .url)
+        try container.encodeIfPresent(sha256, forKey: .sha256)
     }
 }
 

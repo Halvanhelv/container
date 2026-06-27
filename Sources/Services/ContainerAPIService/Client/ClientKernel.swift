@@ -42,7 +42,9 @@ extension ClientKernel {
         try await client.send(message)
     }
 
-    public static func installKernelFromTar(tarFile: String, kernelFilePath: String, platform: SystemPlatform, progressUpdate: ProgressUpdateHandler? = nil, force: Bool)
+    public static func installKernelFromTar(
+        tarFile: String, kernelFilePath: String, platform: SystemPlatform, expectedSHA256: String? = nil, progressUpdate: ProgressUpdateHandler? = nil, force: Bool
+    )
         async throws
     {
         let client = newClient()
@@ -51,6 +53,9 @@ extension ClientKernel {
         message.set(key: .kernelTarURL, value: tarFile)
         message.set(key: .kernelFilePath, value: kernelFilePath)
         message.set(key: .kernelForce, value: force)
+        if let expectedSHA256 {
+            message.set(key: .kernelSHA256, value: expectedSHA256)
+        }
 
         let platformData = try JSONEncoder().encode(platform)
         message.set(key: .systemPlatform, value: platformData)
